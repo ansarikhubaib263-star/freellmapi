@@ -7,7 +7,8 @@ import { installFileLogger } from './logger.js';
 import { buildTray, refreshTrayLocale } from './tray.js';
 import { trayIsInMenuBar } from './tray-visibility.js';
 import { shouldOpenDashboardOnLaunch } from './tray-platform.js';
-import { openDashboard } from './window.js';
+import { openDashboard, getDashboardWebContentsId } from './window.js';
+import { isTrustedDashboardSender, isDashboardBootstrapSender } from './ipc-trust.js';
 import { todayStats, hourlyRequests, successRateToday } from './stats.js';
 import { normalizeLocale, nativeStrings, type NativeLocale } from './i18n.js';
 import { initUpdater, getUpdateState, checkForUpdates, downloadUpdate, installUpdate, checkFromTray } from './updater.js';
@@ -61,7 +62,7 @@ if (!app.requestSingleInstanceLock()) {
   );
 
   app.on('second-instance', () => {
-    if (sessionToken) openDashboard(resolvedPort, sessionToken);
+    if (sessionToken) openDashboard(resolvedPort);
   });
 
   // Reopening a *running* app on macOS — double-clicking it in Finder, clicking
@@ -70,7 +71,7 @@ if (!app.requestSingleInstanceLock()) {
   // never fires for it. Without this handler a user whose tray icon is hidden
   // or clipped by the menu bar has no way back into the UI at all (#807).
   app.on('activate', () => {
-    if (sessionToken) openDashboard(resolvedPort, sessionToken);
+    if (sessionToken) openDashboard(resolvedPort);
   });
 
   // The app lives in the tray; closing the dashboard window must not quit.
@@ -149,7 +150,7 @@ if (!app.requestSingleInstanceLock()) {
     const { getPopoverWindow } = await import('./popover.js');
     getPopoverWindow()?.webContents.send('freeapi:refresh');
   });
-  ipcMain.handle('freeapi:open-dashboard', () => openDashboard(resolvedPort, sessionToken));
+  ipcMain.handle('freeapi:open-dashboard', () => openDashboard(resolvedPort));
   ipcMain.handle('freeapi:copy-base-url', () => clipboard.writeText(`http://127.0.0.1:${resolvedPort}/v1`));
   ipcMain.handle('freeapi:copy-api-key', () => clipboard.writeText(getUnifiedApiKey()));
   ipcMain.handle('freeapi:get-login-item', () => app.getLoginItemSettings().openAtLogin);
@@ -165,9 +166,35 @@ if (!app.requestSingleInstanceLock()) {
   // __FREEAPI_SESSION__). The window never shows a login form: its account has
   // a random password nobody knows, so when the boot-time session is gone the
   // only sane answer is a new one. Later windows reuse it too.
-  ipcMain.handle('freeapi:session-token', () => {
+  ipcMain.handle('freeapi:session-token', (event) => {
+    // Strict: the dashboard window's main frame, at the local dashboard origin.
+    if (!isTrustedDashboardSender(event, resolvedPort, getDashboardWebContentsId())) {
+      throw new Error('freeapi:session-token is only available to the local dashboard');
+    }
     sessionToken = ensureSessionToken();
     return sessionToken;
+  });
+  // Boot-time seed for the dashboard preload: the app version and the session
+  // token, fetched synchronously so localStorage is populated before any page
+  // script runs. This replaces passing them as command-line arguments, which any
+  // local user can read from the process list. The version is not sensitive and
+  // is always returned; the token only goes to the dashboard window's main frame
+  // (see isDashboardBootstrapSender for why this check is looser about the URL
+  // than the runtime channel above). Every path sets returnValue: an unanswered
+  // sendSync would leave the renderer blocked.
+  ipcMain.on('freeapi:bootstrap-sync', (event) => {
+    const version = app.getVersion();
+    try {
+      if (!isDashboardBootstrapSender(event, resolvedPort, getDashboardWebContentsId())) {
+        event.returnValue = { token: null, version };
+        return;
+      }
+      sessionToken ||= ensureSessionToken();
+      event.returnValue = { token: sessionToken, version };
+    } catch (err) {
+      console.error('[desktop] could not prepare the dashboard bootstrap:', err);
+      event.returnValue = { token: null, version };
+    }
   });
 
   // Flip the LAN-access flag and relaunch so the server rebinds (127.0.0.1 ↔
@@ -234,7 +261,7 @@ if (!app.requestSingleInstanceLock()) {
       defaultId: 0,
       cancelId: 1,
     });
-    if (choice === 0) openDashboard(port, sessionToken);
+    if (choice === 0) openDashboard(port);
   }
 
   // The bundle ships LSUIElement, so the app starts as an accessory with no
@@ -309,7 +336,6 @@ if (!app.requestSingleInstanceLock()) {
       try {
         tray = buildTray(
           port,
-          sessionToken,
           () => locale,
           () => loadConfig().lanAccess ?? false,
           toggleLanAccess,
@@ -334,7 +360,7 @@ if (!app.requestSingleInstanceLock()) {
         !process.env.FREEAPI_SHOT
         && shouldOpenDashboardOnLaunch(process.platform, { trayBuilt: tray !== null, welcomedBefore })
       ) {
-        openDashboard(port, sessionToken);
+        openDashboard(port);
         if (!welcomedBefore) saveConfig({ ...loadConfig(), launchDashboardShown: true });
       }
 
@@ -356,7 +382,7 @@ if (!app.requestSingleInstanceLock()) {
           // FREEAPI_THEME forces a theme for captures — skip the dashboard
           // then, or its theme report would immediately override the override.
           if (!process.env.FREEAPI_THEME) {
-            openDashboard(port, sessionToken);
+            openDashboard(port);
             await sleep(2500);
             const dashWin = getDashboardWindow();
             if (dashWin) {
@@ -371,7 +397,7 @@ if (!app.requestSingleInstanceLock()) {
         await sleep(1500);
         const pop = await getPopoverWindow()?.webContents.capturePage();
         if (pop) fs.writeFileSync('/tmp/freeapi-popover.png', pop.toPNG());
-        openDashboard(port, sessionToken);
+        openDashboard(port);
         await sleep(3000);
         const dash = await getDashboardWindow()?.webContents.capturePage();
         if (dash) fs.writeFileSync('/tmp/freeapi-dashboard.png', dash.toPNG());
