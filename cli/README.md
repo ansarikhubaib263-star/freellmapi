@@ -106,7 +106,7 @@ them into the child process environment for that run only.
 
 ## Requirements
 
-Node.js >= 20.18. A running FreeLLMAPI gateway
+Node.js 22.13+ (22, 24 or 26). A running FreeLLMAPI gateway
 ([install guide](https://github.com/tashfeenahmed/freellmapi/blob/main/docs/en/install/01-install.md)).
 
 ## Links

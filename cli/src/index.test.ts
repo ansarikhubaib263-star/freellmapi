@@ -246,16 +246,32 @@ describe('CLI arguments and launchers', () => {
   // (only the interactive key prompt needs it), and this pure check turns an
   // old runtime into one clear sentence before main() runs.
   describe('unsupportedNodeVersion (#1283)', () => {
-    it('accepts Node 20 and newer', () => {
-      expect(unsupportedNodeVersion('20.18.0')).toBeNull();
-      expect(unsupportedNodeVersion('22.5.1')).toBeNull();
+    it('accepts Node 22.13 and newer', () => {
+      expect(unsupportedNodeVersion('22.13.0')).toBeNull();
+      expect(unsupportedNodeVersion('22.23.4')).toBeNull();
+      expect(unsupportedNodeVersion('24.22.1')).toBeNull();
       expect(unsupportedNodeVersion('26.9.0')).toBeNull();
+    });
+
+    it('does not hard-fail on odd-numbered releases outside the tested range', () => {
+      // 23 and 25 are not a supported configuration (engines and CI skip them,
+      // vitest does not support them) but the CLI itself runs fine on them.
+      expect(unsupportedNodeVersion('23.11.1')).toBeNull();
+      expect(unsupportedNodeVersion('25.2.0')).toBeNull();
+    });
+
+    it('rejects runtimes older than 22.13, including the old Node 20 floor', () => {
+      for (const version of ['20.18.0', '21.7.3', '22.0.0', '22.12.0']) {
+        const message = unsupportedNodeVersion(version);
+        expect(message).toContain('Node.js 22.13 or newer');
+        expect(message).toContain(version);
+      }
     });
 
     it('rejects the older runtimes from the issue reports', () => {
       for (const version of ['12.22.12', '14.21.3', '16.20.2', '18.19.0', '19.9.0']) {
         const message = unsupportedNodeVersion(version);
-        expect(message).toContain('Node.js 20 or newer');
+        expect(message).toContain('Node.js 22.13 or newer');
         expect(message).toContain(version);
       }
     });

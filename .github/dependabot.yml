@@ -1,8 +1,48 @@
 # Actions are pinned to commit SHAs in .github/workflows, so nothing floats to a
 # new release on its own. Dependabot is what moves those pins forward.
+#
+# npm and Docker dependencies are covered too. Minor and patch bumps are
+# grouped into one PR per ecosystem per week to keep review noise down; major
+# bumps arrive as individual PRs.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # Root npm workspaces (shared, server, client, cli) share the single
+  # package-lock.json at the repo root.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The Electron desktop app is NOT a workspace: it has its own package.json
+  # and package-lock.json.
+  - package-ecosystem: "npm"
+    directory: "/desktop"
+    schedule:
+      interval: "weekly"
+    groups:
+      desktop-npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Dockerfile base image (node:<version>-bookworm-slim).
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Stay on the supported LTS line. A major Node image bump (e.g. to an
+      # odd-numbered release, which vitest does not support) is a deliberate
+      # decision made together with package.json engines and the CI matrix.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]

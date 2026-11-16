@@ -83,7 +83,7 @@ docker compose up -d
 
 ## 本地开发
 
-**前置条件：** Node.js 20+、npm。
+**前置条件：** Node.js 22.13+（22、24 或 26，即 CI 测试的版本线；23、25 等奇数版本不受支持）、npm。
 
 *在 macOS / Linux 上（Bash）：*
 ```bash

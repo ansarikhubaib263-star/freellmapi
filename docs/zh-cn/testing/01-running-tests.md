@@ -48,7 +48,7 @@ npm run check:i18n -w client      # scripts/check-i18n.mjs
 
 ## CI 摘要
 
-[`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) 运行在 `ubuntu-24.04` 上，针对 `main` 的推送和 PR 触发，是一个横跨 Node **20 和 22** 矩阵的单一 `test` 任务——正好是受支持引擎区间（`>=20.18 <25`)的两端。Node 20 是基线，历史上曾抓住被较新的本地 Node 掩盖的崩溃；22 是多数贡献者在用的 LTS。步骤按顺序：
+[`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) 运行在 `ubuntu-24.04` 上，针对 `main` 的推送和 PR 触发，是一个横跨 Node **22、24 和 26** 矩阵的单一 `test` 任务，对应受支持的引擎区间（`^22.13 || ^24 || ^26`）。22 是最老的受支持 LTS，也是能抓住被较新的本地 Node 掩盖的崩溃的基线；24 是 Docker 镜像所用的版本；26 是区间内最新的版本线。奇数版本（23、25）既不测试也不受支持，因为 vitest 本身只支持 `^22.12 || ^24 || >=26`。工作流的 `GITHUB_TOKEN` 仅限 `contents: read`。步骤按顺序：
 
 1. checkout + setup-node（带 npm 缓存）
 2. `npm install`

@@ -31,14 +31,16 @@ const compare = (left, right) => {
   }
   return 0;
 };
-const nodeOk = compare(nodeVersion, [20, 18, 0]) >= 0 && nodeVersion[0] < 25;
+// Matches package.json engines: ^22.13 || ^24 || ^26. Odd-numbered releases
+// (23, 25) are rejected because vitest, a dev dependency, does not support them.
+const nodeOk = compare(nodeVersion, [22, 13, 0]) >= 0 && [22, 24, 26].includes(nodeVersion[0]);
 const npmOk = compare(npmVersion, [10, 0, 0]) >= 0;
 process.stdout.write(nodeOk && npmOk ? 'yes' : 'no');
 NODE
 )"
 
 if [[ "$version_is_supported" != "yes" ]]; then
-  echo "Node.js >=20.18.0 and <25.0.0 plus npm >=10.0.0 are required; found Node.js $node_version and npm $npm_version." >&2
+  echo "Node.js ^22.13.0, ^24.0.0 or ^26.0.0 plus npm >=10.0.0 are required; found Node.js $node_version and npm $npm_version." >&2
   exit 1
 fi
 
