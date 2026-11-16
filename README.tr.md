@@ -166,7 +166,7 @@ Temmuz 2026 tarihli herkese açık belgelere dayanır; düzeltmelerinizi bekliyo
 - **Yönetim paneli ve analizler** — anahtar yönetimi, zincir sıralaması, deneme alanı ve 24 saat–90 günlük dönemlerde p50/p95/TTFT analizleri için React arayüzü. Oturum açma koruması, açık/koyu temalar ve [60 dil](#languages).
 - **ChatGPT uyumlu MCP sunucusu ve etkileşimli belgeler** — ChatGPT ve diğer MCP istemcileri FreeLLMAPI ile çıkarım yapabilir, kullanılabilir modelleri listeleyebilir, sağlayıcı sağlığı/kullanım/önbellek/yönlendirme üst verilerini inceleyebilir ve `/mcp` üzerinden stratejiyi yönetebilir. Bağımlılık gerektirmeyen OpenAPI görüntüleyicisi `/v1/docs` adresindedir. [ChatGPT ve kodlama ajanları →](docs/en/clients/01-agent-clients.md#mcp-server)
 - **İşletimi kolaylaştıran özellikler** — isteğe bağlı yanıt önbelleği, şifreli veritabanı yedekleri, düzenli anahtar sağlık kontrolleri, toplu anahtar içe/dışa aktarımı ve bildirimsel başlangıç yapılandırması. [Kurulum ve dağıtım →](docs/en/install/01-install.md)
-- **Node 20+ çalışan her yerde çalışır** — Windows, macOS, Linux sunucuları veya Raspberry Pi dâhil küçük ARM tek kart bilgisayarlar. PM2, systemd ya da tercih ettiğiniz süreç yöneticisiyle boşta yaklaşık 40 MB RSS bellek kullanımı.
+- **Node 22.13+ çalışan her yerde çalışır** (CI, Node 22, 24 ve 26 üzerinde test eder) — Windows, macOS, Linux sunucuları veya Raspberry Pi dâhil küçük ARM tek kart bilgisayarlar. PM2, systemd ya da tercih ettiğiniz süreç yöneticisiyle boşta yaklaşık 40 MB RSS bellek kullanımı.
 
 Kapsam bilinçli olarak dar tutulmuştur; [henüz desteklenmeyen özelliklere](docs/en/architecture/00-high-level-index.md#not-yet-supported) bakın.
 

@@ -6,7 +6,7 @@
 // with "Cannot read properties of undefined (reading 'setItem')".
 //
 // Install a minimal spec-shaped Storage whenever the native one is missing.
-// When the native one exists we leave it completely alone, so CI on Node 20/22
+// When the native one exists we leave it completely alone, so CI on Node 22/24/26
 // exercises exactly what it always has.
 class MemoryStorage implements Storage {
   private map = new Map<string, string>()

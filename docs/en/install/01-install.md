@@ -84,7 +84,7 @@ docker compose up -d
 
 ## Local development
 
-**Prerequisites:** Node.js 20+, npm.
+**Prerequisites:** Node.js 22.13+ (22, 24 or 26 — the lines CI tests; odd-numbered releases such as 23 and 25 are not supported), npm.
 
 *On macOS / Linux (Bash):*
 ```bash

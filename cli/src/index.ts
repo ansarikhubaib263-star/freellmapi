@@ -502,19 +502,24 @@ function isDirectExecution(): boolean {
   }
 }
 
-/** Minimum Node major this CLI actually runs on: `AbortSignal.timeout`
- *  (17.3), global `fetch` (18), `node:readline/promises` (17.4) — rounded to
- *  the package's engines floor of 20. npm treats `engines` as a warning by
+/** Minimum Node this CLI supports: 22.13, the floor of the package's engines
+ *  range (`^22.13 || ^24 || ^26`). npm treats `engines` as a warning by
  *  default (and npm 6, still common on Windows boxes hitting #1283, ignores it
  *  for `npx`), so without this check an unsupported runtime gets a stack
- *  trace instead of a sentence. Returns null when the runtime is fine. */
+ *  trace instead of a sentence. Returns null when the runtime is fine.
+ *
+ *  Only the floor is enforced here. Odd-numbered releases (23, 25) sit outside
+ *  the tested engines range but are not blocked at runtime: the CLI only needs
+ *  APIs those releases ship, and refusing to start would be hostile for no
+ *  gain. They are simply not a supported configuration. */
 export function unsupportedNodeVersion(
   version: string | undefined = process.versions.node,
   major: number | undefined = Number(version?.split('.')[0]),
+  minor: number = Number(version?.split('.')[1] ?? 0),
 ): string | null {
   if (!version || !Number.isFinite(major)) return null; // Non-Node runtimes: don't guess.
-  if (major >= 20) return null;
-  return `freellmapi requires Node.js 20 or newer (found ${version}). Install one from https://nodejs.org and re-run.`;
+  if (major > 22 || (major === 22 && (Number.isFinite(minor) ? minor : 0) >= 13)) return null;
+  return `freellmapi requires Node.js 22.13 or newer (found ${version}). Install one from https://nodejs.org and re-run.`;
 }
 
 if (isDirectExecution()) {

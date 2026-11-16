@@ -46,8 +46,10 @@ if (-not (Test-Path -LiteralPath $packageJson) -or -not (Test-Path -LiteralPath 
 }
 
 $nodeVersion = Get-CommandVersion -Command 'node' -Argument '--version'
-if ($nodeVersion -lt [Version]'20.18.0' -or $nodeVersion -ge [Version]'25.0.0') {
-    throw "Node.js >=20.18.0 and <25.0.0 is required; found $nodeVersion."
+# Matches package.json engines: ^22.13 || ^24 || ^26. Odd-numbered releases
+# (23, 25) are rejected because vitest, a dev dependency, does not support them.
+if ($nodeVersion -lt [Version]'22.13.0' -or @(22, 24, 26) -notcontains $nodeVersion.Major) {
+    throw "Node.js ^22.13.0, ^24.0.0 or ^26.0.0 is required; found $nodeVersion."
 }
 
 $npmVersion = Get-CommandVersion -Command 'npm' -Argument '--version'

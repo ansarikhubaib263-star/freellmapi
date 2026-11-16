@@ -14,7 +14,7 @@ installer and a ZIP containing the app.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22.13+ (22, 24 or 26)
 - A native build toolchain for `better-sqlite3`:
   - **macOS** — Xcode Command Line Tools (`xcode-select --install`) and Python 3
   - **Windows** — Visual Studio Build Tools ("Desktop development with C++")

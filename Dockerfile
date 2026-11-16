@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_IMAGE=node:24.22.1-bookworm-slim
+# The Node base image is pinned in ONE literal FROM line below, because
+# Dependabot's docker ecosystem only matches literal image names — it does not
+# resolve an ARG default used in FROM, so `ARG NODE_IMAGE=node:<tag>` was
+# invisible to it. NODE_IMAGE defaults to that stage's name and still works as
+# a build-arg override: `--build-arg NODE_IMAGE=node:22-bookworm-slim` replaces
+# the base for both stages, and the unused node-base stage is then skipped.
+# The ARG must come before the first FROM to be usable inside FROM lines.
+ARG NODE_IMAGE=node-base
+
+FROM node:24.22.1-bookworm-slim AS node-base
 
 FROM ${NODE_IMAGE} AS deps
 WORKDIR /app

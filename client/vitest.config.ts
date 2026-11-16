@@ -18,8 +18,8 @@
 //     makes the run die with "Cannot find package 'jsdom'".
 //   * It is pinned to ^27. jsdom 28+ depends on undici, and undici 8 both
 //     declares `engines: >=22.19.0` and calls worker_threads.markAsUncloneable
-//     unguarded — a function Node 20 does not have. Since the repo supports
-//     Node >=20.18 and CI runs the suite on Node 20, that combination fails
+//     unguarded — a function older Node lines do not have. The repo supports
+//     Node ^22.13, which includes 22.13–22.18, so that combination fails
 //     at import time with "webidl.util.markAsUncloneable is not a function".
 //     jsdom 27 has no undici dependency at all.
 import path from 'node:path'

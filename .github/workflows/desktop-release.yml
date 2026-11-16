@@ -88,9 +88,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Node 22: the oldest line in the repo's engines range (^22.13 || ^24 ||
+      # ^26). Node 20 is end of life and below the supported floor.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Exercise the retry contract on every OS before any dependency download.
       - name: Test download retry helper
@@ -469,9 +471,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Node 22: the oldest line in the repo's engines range (^22.13 || ^24 ||
+      # ^26). Node 20 is end of life and below the supported floor.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Install metadata tooling
         shell: bash
         run: bash desktop/scripts/retry-network-step.sh npm --prefix desktop ci --ignore-scripts
