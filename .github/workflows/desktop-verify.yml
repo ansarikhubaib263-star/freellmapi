@@ -1,0 +1,151 @@
+name: Desktop verify
+
+# Checks the desktop app cannot get from unit tests: the real Electron 38 type
+# definitions, and the real Chromium sandbox on Ubuntu 24.04. Read-only: it
+# publishes nothing, uses no secrets, and never touches a release.
+#
+# `pull_request` without a `branches` filter runs for pull requests against any
+# base branch, so this also runs on a PR stacked on another branch.
+on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'client/**'
+      - '.github/workflows/desktop-verify.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Electron 38 type-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      # Only the type definitions are needed here, not the Electron binary.
+      - name: Install desktop dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: bash desktop/scripts/retry-network-step.sh npm --prefix desktop ci
+
+      - name: Confirm the installed Electron is version 38
+        run: |
+          v=$(node -p "require('./desktop/node_modules/electron/package.json').version")
+          echo "electron $v"
+          case "$v" in 38.*) ;; *) echo "::error::expected Electron 38, got $v"; exit 1 ;; esac
+
+      # The desktop tsconfig has never been run in CI, so errors may already
+      # exist on main. Compare against main and fail only on NEW errors.
+      - name: Type-check and compare with main
+        shell: bash
+        run: |
+          set -uo pipefail
+          tsc="$PWD/desktop/node_modules/typescript/bin/tsc"
+          work="$RUNNER_TEMP/tsc"
+          mkdir -p "$work"
+          norm() { sed -E 's/\([0-9]+,[0-9]+\)//' | grep -E 'error TS' | sort -u || true; }
+
+          node "$tsc" -p desktop --noEmit --pretty false > "$work/pr.txt" 2>&1
+          pr_rc=$?
+          norm < "$work/pr.txt" > "$work/pr.norm"
+
+          git fetch --no-tags --depth=1 origin main
+          git worktree add --detach "$work/base" FETCH_HEAD
+          ln -s "$PWD/desktop/node_modules" "$work/base/desktop/node_modules"
+          (cd "$work/base" && node "$tsc" -p desktop --noEmit --pretty false) > "$work/base.txt" 2>&1 || true
+          norm < "$work/base.txt" > "$work/base.norm"
+
+          echo "tsc exit code on this branch: $pr_rc"
+          echo "errors on this branch: $(wc -l < "$work/pr.norm")"
+          echo "errors already on main: $(wc -l < "$work/base.norm")"
+
+          if [ "$pr_rc" -ne 0 ] && [ ! -s "$work/pr.norm" ]; then
+            echo "::error::tsc failed without reporting a type error"
+            cat "$work/pr.txt"
+            exit 1
+          fi
+
+          new=$(comm -13 "$work/base.norm" "$work/pr.norm")
+          {
+            echo "## Electron 38 type-check"
+            echo ""
+            echo "- errors on this branch: $(wc -l < "$work/pr.norm")"
+            echo "- errors already on main: $(wc -l < "$work/base.norm")"
+            echo "- new errors introduced by this branch: $(printf '%s' "$new" | grep -c . || true)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -s "$work/base.norm" ]; then
+            echo "::warning::main already has $(wc -l < "$work/base.norm") type errors (not caused by this branch):"
+            cat "$work/base.norm"
+          fi
+          if [ -n "$new" ]; then
+            echo "::error::this branch introduces new type errors:"
+            echo "$new"
+            exit 1
+          fi
+          echo "no new type errors"
+
+  linux-runtime:
+    name: Linux sandbox runtime (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Install workspace dependencies
+        run: bash desktop/scripts/retry-network-step.sh npm ci
+
+      - name: Install desktop dependencies
+        run: bash desktop/scripts/retry-network-step.sh npm --prefix desktop ci
+
+      - name: Build client and desktop bundles
+        run: |
+          npm run build -w client
+          npm --prefix desktop run build:all
+
+      - name: Install Electron runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libxss1
+
+      # Same configuration as the packaged .deb (see
+      # desktop/scripts/after-pack-linux-sandbox.mjs): a root-owned setuid
+      # chrome-sandbox. No --no-sandbox anywhere except the labelled negative
+      # control inside the script.
+      - name: Make chrome-sandbox root-owned and setuid
+        run: |
+          sandbox=desktop/node_modules/electron/dist/chrome-sandbox
+          sudo chown root:root "$sandbox"
+          sudo chmod 4755 "$sandbox"
+          ls -l "$sandbox"
+
+      - name: Run Linux runtime verification
+        env:
+          VERIFY_OUT_DIR: ${{ runner.temp }}/desktop-verify
+        run: |
+          xvfb-run -a --server-args="-screen 0 1280x1024x24" \
+            node desktop/scripts/verify/linux-runtime.mjs
+
+      - name: Upload logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-verify-linux
+          path: ${{ runner.temp }}/desktop-verify
+          retention-days: 7
+          if-no-files-found: warn
