@@ -1,15 +1,30 @@
 // Built to build/preload.cjs (CommonJS — the reliable preload format).
 // Runs in the renderer before any page script: seeds the dashboard session
 // token into localStorage so AuthGate's very first /api/auth/status call is
-// authenticated. The token arrives via additionalArguments (process.argv),
-// which avoids templating strings into executeJavaScript.
+// authenticated. The token (and app version) come from the main process over
+// one synchronous IPC round trip — NOT from command-line arguments, which other
+// local users can read from the process list. The main process only answers the
+// local dashboard origin (see ipc-trust.ts).
+//
+// This file runs in a sandboxed renderer, so it may only import `electron`.
 import { contextBridge, ipcRenderer } from 'electron';
 
 const TOKEN_KEY = 'freellmapi_dashboard_token';
-const arg = process.argv.find((a) => a.startsWith('--freeapi-token='));
-if (arg) {
+
+interface Bootstrap {
+  token: string | null;
+  version: string;
+}
+
+let bootstrap: Bootstrap | null = null;
+try {
+  bootstrap = ipcRenderer.sendSync('freeapi:bootstrap-sync') as Bootstrap | null;
+} catch {
+  // IPC unavailable — the dashboard falls back to its own session flow.
+}
+if (bootstrap?.token) {
   try {
-    window.localStorage.setItem(TOKEN_KEY, arg.slice('--freeapi-token='.length));
+    window.localStorage.setItem(TOKEN_KEY, bootstrap.token);
   } catch {
     // localStorage unavailable — the dashboard will show its login screen.
   }
@@ -44,14 +59,10 @@ if (process.platform === 'darwin' || process.platform === 'win32') {
 }
 
 // The running build's version, so the dashboard can show which one it is and
-// offer a check against the published releases (#703). Arrives the same way the
-// token does; absent in a browser, where the dashboard simply omits the row
+// offer a check against the published releases (#703). Comes from the bootstrap
+// call above; absent in a browser, where the dashboard simply omits the row
 // rather than guessing from the server's own (unrelated) package version.
-const versionArg = process.argv.find((a) => a.startsWith('--freeapi-version='));
-contextBridge.exposeInMainWorld(
-  '__FREEAPI_VERSION__',
-  versionArg ? versionArg.slice('--freeapi-version='.length) : null,
-);
+contextBridge.exposeInMainWorld('__FREEAPI_VERSION__', bootstrap?.version ?? null);
 
 // The in-app updater (the Settings update dialog and the update reminder). Like the session bridge above, deliberately
 // narrow: it can only check for, download and install the release published at

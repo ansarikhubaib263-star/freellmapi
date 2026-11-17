@@ -46,7 +46,9 @@ function createPopover(): BrowserWindow {
     webPreferences: {
       preload: path.join(__dirname, 'preload-popover.cjs'),
       contextIsolation: true,
-      sandbox: false,
+      // Sandboxed like the dashboard window; preload-popover.ts only imports
+      // `electron`, so it loads fine under the sandbox.
+      sandbox: true,
       nodeIntegration: false,
     },
   });
