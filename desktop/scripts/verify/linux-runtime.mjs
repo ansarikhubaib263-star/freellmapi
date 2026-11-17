@@ -169,6 +169,7 @@ function launchElectron({ electronBin, desktopDir, env, args, logFile, detached 
     stdio: ['ignore', out, out],
   });
   child.exitPromise = new Promise((resolve) => child.once('exit', (code, sig) => resolve({ code, sig })));
+  child.exitPromise.then((r) => console.log(`electron pid ${child.pid} exited: code=${r.code} signal=${r.sig}`));
   return child;
 }
 
@@ -179,6 +180,15 @@ async function stopApp(child) {
   if (done === null) {
     try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
     await Promise.race([child.exitPromise, sleep(5000)]);
+  }
+}
+
+function dumpLogs(outDir) {
+  for (const name of fs.readdirSync(outDir).filter((n) => n.endsWith('.log'))) {
+    const lines = fs.readFileSync(path.join(outDir, name), 'utf8').split('\n');
+    console.log(`::group::${name} (last ${Math.min(lines.length, 80)} of ${lines.length} lines)`);
+    console.log(lines.slice(-80).join('\n'));
+    console.log('::endgroup::');
   }
 }
 
@@ -494,6 +504,7 @@ async function main() {
 
   writeSummary(outDir);
   const failed = results.filter((r) => !r.ok);
+  if (failed.length > 0) dumpLogs(outDir);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
   process.exit(failed.length === 0 ? 0 : 1);
 }

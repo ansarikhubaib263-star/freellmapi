@@ -49,6 +49,9 @@ jobs:
       - name: Type-check and compare with main
         shell: bash
         run: |
+          # The runner's default shell uses -e; tsc exits non-zero when it finds
+          # errors, which is exactly what is being measured here.
+          set +e
           set -uo pipefail
           tsc="$PWD/desktop/node_modules/typescript/bin/tsc"
           work="$RUNNER_TEMP/tsc"
